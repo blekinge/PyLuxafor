@@ -57,13 +57,19 @@ class Device(object):
         self.conn = conn
 
     def __enter__(self):
-        self.conn.detach_kernel_driver(0)
+        try:
+            self.conn.detach_kernel_driver(0)
+        except Exception as e:
+            pass
         self.conn.set_configuration()
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
         usb.util.dispose_resources(self.conn)
-        self.conn.attach_kernel_driver(0)
+        try:
+            self.conn.attach_kernel_driver(0)
+        except Exception as e:
+            pass
         return False
 
     def connect(self):
@@ -74,13 +80,13 @@ class Device(object):
 
     def jump2color(self, color, leds=Leds.all):
         p = Package(command_code=1, leds=leds, color=Color(color))
-        return self.conn.write(endpoint=1, data=p.data, timeout=None)
+        return self.write(p.data)
 
     def fade2color(self, color, leds=Leds.all, speed=50):
         if speed < 0 or speed > 255:
             raise ValueError('Fade speed out of range [0-255].')
         p = Package(command_code=2, leds=leds, color=Color(color), optional_bytes=(speed, 0, 0))
-        return self.conn.write(endpoint=1, data=p.data, timeout=None)
+        return self.write(p.data)
 
     def blink(self, color, leds=Leds.all, speed=50, repeats=3):
         if speed < 0 or speed > 255:
@@ -88,7 +94,7 @@ class Device(object):
         if repeats < 0 or repeats > 255:
             raise ValueError('Blink repeats out of range [0-255].')
         p = Package(command_code=3, leds=leds, color=Color(color), optional_bytes=(speed, 0, repeats))
-        return self.conn.write(endpoint=1, data=p.data, timeout=None)
+        return self.write(p.data)
 
     def pattern(self, pattern_type=Pattern.rainbow_wave, repeats=5):
         if repeats < 0 or repeats > 255:
@@ -96,7 +102,7 @@ class Device(object):
         pseudo_color = Color('#000000')
         pseudo_color.bytes[0] = repeats
         p = Package(command_code=6, leds=pattern_type, color=pseudo_color)
-        return self.conn.write(endpoint=1, data=p.data, timeout=None)
+        return self.write(p.data)
 
     def wave(self, color='#00ff00', wave_type=Wave.overlapping_short, speed=100, repeats=5):
         if speed < 0 or speed > 255:
@@ -104,11 +110,19 @@ class Device(object):
         if repeats < 0 or repeats > 255:
             raise ValueError('Wave repeats out of range [0-255].')
         p = Package(command_code=4, leds=wave_type, color=Color(color), optional_bytes=(0, repeats, speed))
-        return self.conn.write(endpoint=1, data=p.data, timeout=None)
+        return self.write(p.data)
 
     def off(self, leds=Leds.all):
         p = Package(command_code=1, leds=leds, color=Color())
-        return self.conn.write(endpoint=1, data=p.data, timeout=None)
+        return self.write(p.data)
+
+    def write(self,data):
+        self.conn.write(endpoint=1, data=data, timeout=None)
+        # Sometimes the flag simply ignores the command. Unknown if this
+        # is an issue with PyUSB or the flag itself. But sending the
+        # command again works a treat.
+        return self.conn.write(endpoint=1, data=data, timeout=None)
+
 
 
 class Devices(object):
