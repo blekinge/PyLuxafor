@@ -8,7 +8,13 @@ Install
 -------
 
 ```
-# pip install git+https://github.com/mais4719/PyLuxafor.git
+# pip install git+https://github.com/blekinge/PyLuxafor.git
+```
+
+Create the file: `/etc/udev/rules.d/10-luxafor.rules` with the following contents:
+
+```
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idProduct}=="f372", ATTRS{idVendor}=="04d8", MODE:="666"
 ```
 
 Requirements
